@@ -28,6 +28,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import com.appzone.springbatch.DTO.CsvHeaderMetadata;
 import com.appzone.springbatch.processors.HeaderProcessor;
 import com.appzone.springbatch.tasklets.TableInitializationTasklet;
 
@@ -45,6 +46,8 @@ public class DynamicBatchService {
 
     public void runDynamicImport(String driverClassName,String dbUrl, String username, String password, String csvFilePath, String tableName) throws Exception {
 
+    	CsvHeaderMetadata columnmetadata = headerProcessor.extractMetadata(csvFilePath);
+    	
         // 1. Create DataSource dynamically at runtime
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName(driverClassName);
@@ -80,7 +83,7 @@ public class DynamicBatchService {
 
         
         // 4. Create Tasklet Step (Table Creation)
-        TableInitializationTasklet tasklet = new TableInitializationTasklet(tableName, jdbcTemplate, headerProcessor);
+        TableInitializationTasklet tasklet = new TableInitializationTasklet(tableName, jdbcTemplate, columnmetadata.getSanitizedHeaders());
         Step createTableStep = new StepBuilder("createTableStep", jobRepository)
                 .tasklet(tasklet, txManager)
                 .build();
@@ -88,7 +91,7 @@ public class DynamicBatchService {
         // 5. Construct Job Flow
         Job importJob = new JobBuilder("dynamicCsvJob", jobRepository)
                 .start(createTableStep)
-                .next(createChunkStep(jobRepository, txManager, namedJdbcTemplate, csvFilePath, tableName))
+                .next(createChunkStep(jobRepository, txManager, namedJdbcTemplate, csvFilePath, columnmetadata, tableName))
                 .build();
         
        
@@ -114,19 +117,20 @@ public class DynamicBatchService {
     private Step createChunkStep(JobRepository jobRepository, 
                                  PlatformTransactionManager txManager, 
                                  NamedParameterJdbcTemplate namedJdbc, 
-                                 String csvFilePath, 
+                                 String csvFilePath,
+                                 CsvHeaderMetadata columnmetadata, 
                                  String tableName) throws Exception {
 
         // Note: Using updated chunk API syntax: .<In, Out>chunk(chunkSize, txManager)
         return new StepBuilder("chunkStep", jobRepository)
-                .<Map<String, Object>, Map<String, Object>>chunk(getChunkSize(csvFilePath))
+                .<Map<String, Object>, Map<String, Object>>chunk(getChunkSize(columnmetadata.getColumnCount()))
                 .reader(createReader(csvFilePath))
                 .writer(createWriter(namedJdbc, tableName))
                 .build();
     }
     
-    private int getChunkSize(String csvFilePath) throws Exception {
-    	int columnCount=headerProcessor.processHeaders(csvFilePath).size();
+    private int getChunkSize(int count) throws Exception {
+    	int columnCount=count;
     	if (columnCount <= 5) return 3000;
         if (columnCount <= 15) return 1500;
         if (columnCount <= 35) return 500;

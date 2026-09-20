@@ -17,13 +17,13 @@ public class TableInitializationTasklet implements Tasklet {
     private final String tableName;
     private final JdbcTemplate jdbcTemplate;
     
-    private final HeaderProcessor headerProcessor;
+    private final List<String> SanitizedHeaders;
 
-    public TableInitializationTasklet(String tableName, JdbcTemplate jdbcTemplate, HeaderProcessor headerProcessor) {
+    public TableInitializationTasklet(String tableName, JdbcTemplate jdbcTemplate, List<String> SanitizedHeaders) {
         this.tableName = tableName;
         this.jdbcTemplate = jdbcTemplate;
         
-        this.headerProcessor = headerProcessor;
+        this.SanitizedHeaders = SanitizedHeaders;
     }
 
     @Override
@@ -47,7 +47,7 @@ public class TableInitializationTasklet implements Tasklet {
 //
 //        String[] rawHeaders = headerLine.split(",");
         
-		List<String> sanitizedHeaders = headerProcessor.processHeaders(csvFilePath);
+		List<String> sanitizedHeaders = SanitizedHeaders;
 
         // Pass headers to chunk step via JobExecutionContext
         chunkContext.getStepContext()

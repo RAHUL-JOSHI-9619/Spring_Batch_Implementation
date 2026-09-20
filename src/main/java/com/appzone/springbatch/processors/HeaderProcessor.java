@@ -11,6 +11,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.appzone.springbatch.DTO.CsvHeaderMetadata;
+
 @Component
 public class HeaderProcessor {
 	@Autowired
@@ -36,7 +38,7 @@ public class HeaderProcessor {
 	}
 	
 	
-    public List<String> processHeaders(String csvFilePath) throws Exception {
+    private List<String> processHeaders(String csvFilePath) throws Exception {
     	String[] rawHeaders = getRawHeaders(csvFilePath);
         List<String> cleanHeaders = new ArrayList<>();
         Map<String, Integer> columnCounts = new HashMap<>();
@@ -67,36 +69,7 @@ public class HeaderProcessor {
         return cleanHeaders;
     }
     
-    public List<String> processHeaders(String[] rawHeaders) {
-    	
-        List<String> cleanHeaders = new ArrayList<>();
-        Map<String, Integer> columnCounts = new HashMap<>();
 
-        for (String raw : rawHeaders) {
-            String clean = raw.toLowerCase()
-                             .trim()
-                             .replaceAll("[^a-z0-9]+", "_")
-                             .replaceAll("^_+|_+$", "");
-
-            if (clean.isEmpty()) {
-                clean = "unnamed_column";
-            }
-
-            if (columnCounts.containsKey(clean)) {
-                int count = columnCounts.get(clean) + 1;
-                columnCounts.put(clean, count);
-                clean = clean + "_" + count;
-            } else {
-                columnCounts.put(clean, 0);
-            }
-            	if (clean.length() > 64) {
-				clean = shortenWithAI(clean);
-				}
-            cleanHeaders.add(clean);
-        }
-
-        return cleanHeaders;
-    }
 
     private String shortenWithAI(String longColumnName) {
         try {
@@ -126,6 +99,13 @@ public class HeaderProcessor {
         }
 
         return longColumnName.substring(0, 64);
+    }
+    
+    
+    
+    public CsvHeaderMetadata extractMetadata(String csvFilePath) throws Exception {
+        List<String> headers = processHeaders(csvFilePath);
+        return new CsvHeaderMetadata(headers);
     }
 	
 }
