@@ -1,0 +1,124 @@
+:root {
+    --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --bg-color: #f8fafc;
+    --card-border: #e2e8f0;
+    --text-dark: #0f172a;
+    --text-muted: #64748b;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-dark);
+    min-height: 100vh;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.gradient-header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 2.5rem 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.25);
+    margin-bottom: 2rem;
+}
+
+.card-custom {
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease-in-out;
+    background: #ffffff;
+    height: 100%;
+}
+
+.card-custom:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+}
+
+.card-title-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-glow);
+    color: #4f46e5;
+    margin-right: 0.75rem;
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #334155;
+}
+
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #cbd5e1;
+    font-size: 0.95rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+.btn-gradient {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    transition: opacity 0.2s ease;
+}
+
+.btn-gradient:hover {
+    opacity: 0.92;
+    color: white;
+}
+
+.console-box {
+    background-color: #0f172a;
+    color: #38bdf8;
+    font-family: 'JetBrains Mono', monospace;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    height: 280px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.console-line {
+    margin-bottom: 0.25rem;
+}
+
+.console-time {
+    color: #64748b;
+}
+
+.console-info { color: #38bdf8; }
+.console-success { color: #4ade80; }
+.console-error { color: #f87171; }
+.console-warn { color: #fbbf24; }
+
+.progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    background-color: #e2e8f0;
+}
+
+.input-group-text-btn {
+    background: transparent;
+    border-left: none;
+    cursor: pointer;
+}

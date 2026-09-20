@@ -8,7 +8,7 @@ public class SpringBatchApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SpringBatchApplication.class, args);
-		System.out.println(System.getenv("GEMINI_API_KEY"));
+		
 	}
 
 }
