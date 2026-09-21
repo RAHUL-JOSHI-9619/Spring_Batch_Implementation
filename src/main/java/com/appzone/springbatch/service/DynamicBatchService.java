@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.appzone.springbatch.DTO.CsvHeaderMetadata;
+import com.appzone.springbatch.Resolvers.DynamicBatchSizeResolver;
 import com.appzone.springbatch.processors.HeaderProcessor;
 import com.appzone.springbatch.tasklets.TableInitializationTasklet;
 
@@ -124,22 +125,16 @@ public class DynamicBatchService {
                                  CsvHeaderMetadata columnmetadata, 
                                  String tableName) throws Exception {
 
+    	int chunkSize = DynamicBatchSizeResolver.resolveBatchSize(namedJdbc, csvFilePath, columnmetadata.getColumnCount());
         // Note: Using updated chunk API syntax: .<In, Out>chunk(chunkSize, txManager)
         return new StepBuilder("chunkStep", jobRepository)
-                .<Map<String, Object>, Map<String, Object>>chunk(getChunkSize(columnmetadata.getColumnCount()))
+                .<Map<String, Object>, Map<String, Object>>chunk(chunkSize)
                 .reader(createReader(csvFilePath))
                 .writer(createWriter(namedJdbc, tableName))
                 .build();
     }
     
-    private int getChunkSize(int count) throws Exception {
-    	int columnCount=count;
-    	if (columnCount <= 5) return 3000;
-        if (columnCount <= 17) return 1500;
-        if (columnCount <= 35) return 500;
-        return 200;
-    	
-    }
+    
 
     private FlatFileItemReader<Map<String, Object>> createReader(String csvFilePath) {
         
