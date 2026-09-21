@@ -1,7 +1,11 @@
 package com.appzone.springbatch.processors;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +45,11 @@ public class HeaderProcessor {
     private List<String> processHeaders(String csvFilePath) throws Exception {
     	String[] rawHeaders = getRawHeaders(csvFilePath);
         List<String> cleanHeaders = new ArrayList<>();
+        
+        
+       
+        
+        
         Map<String, Integer> columnCounts = new HashMap<>();
 
         for (String raw : rawHeaders) {
@@ -65,6 +74,74 @@ public class HeaderProcessor {
 				}
             cleanHeaders.add(clean);
         }
+        
+        //added code for creating the mapping CSV file in Downloads/Column_name_matchings/<csv_file_name>/column_name_mappings.csv
+        
+        
+        // 1. Get user's Downloads folder
+           String userHome = System.getProperty("user.home");
+
+           Path downloadsFolder = Paths.get(userHome, "Downloads");
+
+           // 2. Create Column_name_matchings folder
+           Path matchingFolder = downloadsFolder.resolve("Column_name_matchings");
+
+           Files.createDirectories(matchingFolder);
+
+           // 3. Get CSV file name without extension
+           Path csvPath = Paths.get(csvFilePath);
+
+           String csvFileName = csvPath.getFileName().toString();
+
+           int dotIndex = csvFileName.lastIndexOf('.');
+
+           String folderName;
+
+           if (dotIndex > 0) {
+               folderName = csvFileName.substring(0, dotIndex);
+           } else {
+               folderName = csvFileName;
+           }
+
+           // 4. Create folder using CSV file name
+           Path csvMatchingFolder = matchingFolder.resolve(folderName);
+
+           Files.createDirectories(csvMatchingFolder);
+
+           // 5. Create mapping CSV file
+           Path mappingFile = csvMatchingFolder.resolve("column_name_mappings_"+folderName+".csv");
+
+           // 6. Write mappings
+           try (BufferedWriter writer = Files.newBufferedWriter(mappingFile)) {
+
+               // Header row
+               writer.write("raw_column_name,cleaned_column_name");
+               writer.newLine();
+
+               // Mapping rows
+               for (int i = 0; i < rawHeaders.length; i++) {
+
+                   String rawColumn = rawHeaders[i];
+                   String cleanColumn = cleanHeaders.get(i);
+
+                   writer.write(
+                           rawColumn
+                           + ","
+                           + cleanColumn
+                   );
+
+                   writer.newLine();
+               }
+           }
+
+           System.out.println("Mapping file created at:");
+           System.out.println(mappingFile);
+           
+           
+           
+           
+           //up to here it is added code.
+           
 
         return cleanHeaders;
     }
