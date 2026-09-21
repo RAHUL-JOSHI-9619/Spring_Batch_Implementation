@@ -16,6 +16,9 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.infrastructure.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.infrastructure.item.file.separator.DefaultRecordSeparatorPolicy;
+import org.springframework.batch.infrastructure.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
@@ -132,55 +135,127 @@ public class DynamicBatchService {
     private int getChunkSize(int count) throws Exception {
     	int columnCount=count;
     	if (columnCount <= 5) return 3000;
-        if (columnCount <= 15) return 1500;
+        if (columnCount <= 17) return 1500;
         if (columnCount <= 35) return 500;
         return 200;
     	
     }
 
     private FlatFileItemReader<Map<String, Object>> createReader(String csvFilePath) {
+        
+        // Multi-line quoted values ni handile cheyadaniki tokenizer setup
+        DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
+        tokenizer.setStrict(false);
+
+        // Map object loki map cheyadaniki custom LineMapper
+        DefaultLineMapper<Map<String, Object>> lineMapper = new DefaultLineMapper<>();
+        lineMapper.setLineTokenizer(tokenizer);
+        lineMapper.setFieldSetMapper(fieldSet -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            String[] values = fieldSet.getValues();
+
+            for (int i = 0; i < values.length; i++) {
+                String val = values[i] != null ? values[i].trim() : "";
+                // Empty strings ni null ga change cheyadaniki
+                record.put("col_" + i, val.isEmpty() ? null : val);
+            }
+            return record;
+        });
+
         return new FlatFileItemReaderBuilder<Map<String, Object>>()
                 .name("dynamicCsvReader")
                 .resource(new FileSystemResource(csvFilePath))
                 .linesToSkip(1)
-                .lineMapper((line, lineNumber) -> {
-                    String[] values = line.split(",", -1);
-                    Map<String, Object> record = new LinkedHashMap<>();
-
-                    for (int i = 0; i < values.length; i++) {
-                    	String val = values[i].trim();
-                        // Convert empty strings to null for clean DB inserts
-                        record.put("col_" + i, val.isEmpty() ? null : val);
-                    }
-                    return record;
-                })
+                .recordSeparatorPolicy(new DefaultRecordSeparatorPolicy()) // <--- Dynamic multi-line rows ni fix chestundi
+                .lineMapper(lineMapper)
                 .build();
     }
 
-    private ItemWriter<Map<String, Object>> createWriter(NamedParameterJdbcTemplate namedJdbc, String tableName) {
+    private ItemWriter<Map<String, Object>> createWriter(
+            NamedParameterJdbcTemplate namedJdbc,
+            String tableName) {
+
+        // Tracks cumulative time across all chunks/batches
+        java.util.concurrent.atomic.AtomicLong totalTimeMs = new java.util.concurrent.atomic.AtomicLong(0);
+
         return chunk -> {
+
             if (chunk.isEmpty()) return;
 
             List<MapSqlParameterSource> batchArgs = new ArrayList<>();
 
-            for (Map<String, Object> item : chunk.getItems()) {
+            // Number of columns expected in this batch
+            int colCount = chunk.getItems().get(0).size();
+
+            for (int rowIndex = 0; rowIndex < chunk.getItems().size(); rowIndex++) {
+
+                Map<String, Object> item = chunk.getItems().get(rowIndex);
+
                 MapSqlParameterSource paramSource = new MapSqlParameterSource();
+
                 int idx = 0;
+
                 for (Object value : item.values()) {
+
                     paramSource.addValue("param_" + idx, value);
+
                     idx++;
                 }
+
+                // Check whether this row has all expected parameters
+                for (int i = 0; i < colCount; i++) {
+
+                    String paramName = "param_" + i;
+
+                    if (!paramSource.hasValue(paramName)) {
+
+                        System.out.println("========================================");
+                        System.out.println("ERROR: Missing parameter!");
+                        System.out.println("Row index in current batch : " + rowIndex);
+                        System.out.println("Expected columns           : " + colCount);
+                        System.out.println("Actual values in this row  : " + item.size());
+                        System.out.println("Missing parameter          : " + paramName);
+                        System.out.println("Row data                   : " + item);
+                        System.out.println("========================================");
+                    }
+                }
+
                 batchArgs.add(paramSource);
             }
 
-            int colCount = chunk.getItems().get(0).size();
             List<String> placeholders = new ArrayList<>();
+
             for (int i = 0; i < colCount; i++) {
+
                 placeholders.add(":param_" + i);
+
             }
 
-            String sql = "INSERT INTO `" + tableName + "` VALUES ( " + String.join(", ", placeholders) + ")";
-            namedJdbc.batchUpdate(sql, batchArgs.toArray(new MapSqlParameterSource[0]));
+            String sql = "INSERT INTO `" + tableName + "` VALUES ( "
+                    + String.join(", ", placeholders)
+                    + ")";
+
+            // Measure batch database insertion time
+            long batchStart = System.currentTimeMillis();
+
+            namedJdbc.batchUpdate(
+                    sql,
+                    batchArgs.toArray(new MapSqlParameterSource[0])
+            );
+
+            long batchEnd = System.currentTimeMillis();
+
+            // Calculations
+            long batchDurationMs = batchEnd - batchStart;
+            long cumulativeDurationMs = totalTimeMs.addAndGet(batchDurationMs);
+
+            double batchSec = batchDurationMs / 1000.0;
+            double totalSec = cumulativeDurationMs / 1000.0;
+
+            System.out.printf(
+                    "Inserted batch of %d rows in %.3f sec | Total cumulative time: %.3f sec%n",
+                    batchArgs.size(), batchSec, totalSec
+            );
         };
     }
 }
