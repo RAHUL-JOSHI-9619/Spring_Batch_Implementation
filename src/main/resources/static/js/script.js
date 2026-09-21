@@ -79,33 +79,92 @@ function setProgressBar(percent) {
 }
 
 async function testDatabaseConnection() {
-    const driver = document.getElementById('driverClassName').value;
-    const url = document.getElementById('jdbcUrl').value;
-    const username = document.getElementById('dbUsername').value;
+	const url = document.getElementById("jdbcUrl").value.trim();
+	    const username = document.getElementById("dbUsername").value.trim();
+	    const password = document.getElementById("dbPassword").value;
 
-    if (!driver || !url) {
-        logConsole('WARN', 'Please fill in Driver Class and JDBC URL before testing.');
-        return;
-    }
+	    const button = document.getElementById("testConnBtn");
+	    const spinner = document.getElementById("testBtnSpinner");
+	    const icon = document.getElementById("testBtnIcon");
 
-    const btn = document.getElementById('testConnBtn');
-    const spinner = document.getElementById('testBtnSpinner');
-    const icon = document.getElementById('testBtnIcon');
+	    // Basic frontend validation
+	    if (!url) {
+	        logConsole('ERROR', 'Database URL is required.');
+	        return;
+	    }
 
-    // Set Loading UI State
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
-    icon.classList.add('d-none');
-    logConsole('INFO', 'Testing database connection params...');
+	    if (!username) {
+	        logConsole('ERROR', 'Database username is required.');
+	        return;
+	    }
 
-    // Simulated Latency Delay for Connection Test
-    setTimeout(() => {
-        btn.disabled = false;
-        spinner.classList.add('d-none');
-        icon.classList.remove('d-none');
-        
-        logConsole('SUCCESS', `Connection to ${url} verified successfully!`);
-    }, 1200);
+	    if (!password) {
+	        logConsole('ERROR', 'Database password is required.');
+	        return;
+	    }
+
+	    // Disable button while testing
+	    button.disabled = true;
+	    spinner.classList.remove('d-none');
+	    icon.classList.add('d-none');
+
+	    logConsole('INFO', 'Testing database connection...');
+	    logConsole('INFO', `Database URL: ${url}`);
+	    logConsole('INFO', `Username: ${username}`);
+	    logConsole('INFO', 'Password: ***');
+
+	    try {
+
+	        const response = await fetch(
+	            "/api/database/test-connection",
+	            {
+	                method: "POST",
+
+	                headers: {
+	                    "Content-Type": "application/json"
+	                },
+
+	                body: JSON.stringify({
+	                    url: url,
+	                    username: username,
+	                    password: password
+	                })
+	            }
+	        );
+
+	        const message = await response.text();
+
+	        if (response.ok) {
+
+	            logConsole(
+	                'SUCCESS',
+	                '✓ ' + message
+	            );
+
+	        } else {
+
+	            logConsole(
+	                'ERROR',
+	                '✗ ' + message
+	            );
+	        }
+
+	    } catch (error) {
+
+	        console.error("Connection test error:", error);
+
+	        logConsole(
+	            'ERROR',
+	            '✗ Unable to contact backend server.'
+	        );
+
+	    } finally {
+
+	        // Enable button again
+	        button.disabled = false;
+	        spinner.classList.add('d-none');
+	        icon.classList.remove('d-none');
+	    }
 }
 
 async function handleFormSubmit(e) {
