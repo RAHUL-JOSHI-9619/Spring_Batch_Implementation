@@ -24,14 +24,12 @@ public class TableInitializationTasklet implements Tasklet {
     @Override
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
 
-        // Pass headers to chunk step via JobExecutionContext
         chunkContext.getStepContext()
                     .getStepExecution()
                     .getJobExecution()
                     .getExecutionContext()
                     .put("cleanHeaders", sanitizedHeaders);
 
-        // Fetch DB metadata for dialect handling
         DatabaseInfo dbInfo = jdbcTemplate.execute((java.sql.Connection con) -> {
             DatabaseMetaData metaData = con.getMetaData();
             String productName = metaData.getDatabaseProductName().toLowerCase();
@@ -44,7 +42,7 @@ public class TableInitializationTasklet implements Tasklet {
             return new DatabaseInfo(productName, quote);
         });
 
-        // 1. Drop existing table if present (dialect aware)
+        // 1. Drop existing table if present
         dropTableIfExists(tableName, dbInfo);
 
         // 2. Build and execute CREATE TABLE statement
@@ -57,21 +55,22 @@ public class TableInitializationTasklet implements Tasklet {
     private void dropTableIfExists(String tableName, DatabaseInfo dbInfo) {
         String quotedTableName = quoteIdentifier(tableName, dbInfo);
 
-        if (dbInfo.isOracle()) {
-            // Oracle safe table drop
+        if (dbInfo.isSqlServer()) {
+            // SQL Server 2016+ supports DROP TABLE IF EXISTS
+            jdbcTemplate.execute("DROP TABLE IF EXISTS " + quotedTableName);
+        } else if (dbInfo.isOracle()) {
             try {
                 jdbcTemplate.execute("DROP TABLE " + quotedTableName);
             } catch (Exception e) {
-                // Ignore exception if the table doesn't exist in Oracle
+                // Table did not exist
             }
         } else if (dbInfo.isPostgres() || dbInfo.isMysql()) {
             jdbcTemplate.execute("DROP TABLE IF EXISTS " + quotedTableName);
         } else {
-            // Generic fallback
             try {
                 jdbcTemplate.execute("DROP TABLE " + quotedTableName);
             } catch (Exception e) {
-                // Table probably did not exist
+                // Table did not exist
             }
         }
     }
@@ -96,23 +95,24 @@ public class TableInitializationTasklet implements Tasklet {
     }
 
     private String quoteIdentifier(String identifier, DatabaseInfo dbInfo) {
+        if (dbInfo.isSqlServer()) {
+            return "[" + identifier + "]";
+        }
         if (dbInfo.isOracle() && !identifier.contains(" ")) {
-            // Oracle converts unquoted identifiers to UPPERCASE
             return identifier.toUpperCase();
         }
         return dbInfo.quoteString + identifier + dbInfo.quoteString;
     }
 
     private String getTextDataType(DatabaseInfo dbInfo) {
-        if (dbInfo.isOracle()) {
-            return "VARCHAR2(4000)"; // Or "CLOB" if your CSV cells exceed 4000 chars
-        } else if (dbInfo.isSqlServer()) {
+        if (dbInfo.isSqlServer()) {
             return "NVARCHAR(MAX)";
+        } else if (dbInfo.isOracle()) {
+            return "VARCHAR2(4000)";
         }
-        return "TEXT"; // Standard for MySQL and PostgreSQL
+        return "TEXT";
     }
 
-    // Helper holder class for DB properties
     private static class DatabaseInfo {
         final String productName;
         final String quoteString;

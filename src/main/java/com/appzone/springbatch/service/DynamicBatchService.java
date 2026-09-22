@@ -54,8 +54,6 @@ public class DynamicBatchService {
         dataSource.setUrl(applyBatchOptimizationFlags(dbUrl));
         dataSource.setUsername(username);
         dataSource.setPassword(password);
-        
-       
 
         // 2. Transaction Manager & JdbcTemplates
         PlatformTransactionManager txManager = new DataSourceTransactionManager(dataSource);
@@ -65,9 +63,13 @@ public class DynamicBatchService {
         // Auto-create Spring Batch Metadata Tables
         try {
             ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
-            if (dbUrl.contains("oracle")) {
+            String lowerUrl = dbUrl.toLowerCase();
+
+            if (lowerUrl.contains("sqlserver") || lowerUrl.contains("microsoft")) {
+                populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-sqlserver.sql"));
+            } else if (lowerUrl.contains("oracle")) {
                 populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-oracle.sql"));
-            } else if (dbUrl.contains("postgresql")) {
+            } else if (lowerUrl.contains("postgresql")) {
                 populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-postgresql.sql"));
             } else {
                 populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-mysql.sql"));
@@ -75,7 +77,7 @@ public class DynamicBatchService {
             populator.setContinueOnError(true);
             populator.execute(dataSource);
         } catch (Exception e) {
-            // Tables might already exist, continue execution
+            // Batch schema tables might already exist
         }
 
         // 3. Initialize JobRepository & JobLauncher
@@ -124,12 +126,13 @@ public class DynamicBatchService {
             url += (url.contains("?") ? "&" : "?") + "rewriteBatchedStatements=true";
         } else if (lowerUrl.contains("postgresql") && !lowerUrl.contains("rewritebatchedinserts")) {
             url += (url.contains("?") ? "&" : "?") + "reWriteBatchedInserts=true";
+        } else if ((lowerUrl.contains("sqlserver") || lowerUrl.contains("microsoft")) && !lowerUrl.contains("sendstringparametersasunicode")) {
+            url += (url.contains(";") ? ";" : ";") + "sendStringParametersAsUnicode=true;";
         }
 
         return url;
     }
-    
-    
+
     private Step createChunkStep(JobRepository jobRepository, 
                                  PlatformTransactionManager txManager, 
                                  NamedParameterJdbcTemplate namedJdbc, 
@@ -207,7 +210,6 @@ public class DynamicBatchService {
                 placeholders.add(":param_" + i);
             }
 
-            // Get dialect-aware quotes dynamically (e.g., `tableName` for MySQL, "tableName" for Oracle)
             String safeTableName = getQuotedTableName(namedJdbc, tableName);
 
             String sql = "INSERT INTO " + safeTableName + " VALUES ( "
@@ -236,20 +238,20 @@ public class DynamicBatchService {
         };
     }
 
-    /**
-     * Resolves driver-specific table quoting dynamically using NamedParameterJdbcTemplate
-     */
     private String getQuotedTableName(NamedParameterJdbcTemplate namedJdbc, String tableName) {
         return namedJdbc.getJdbcTemplate().execute((java.sql.Connection con) -> {
             java.sql.DatabaseMetaData metaData = con.getMetaData();
-            String quoteString = metaData.getIdentifierQuoteString();
+            String dbProductName = metaData.getDatabaseProductName().toLowerCase();
 
+            if (dbProductName.contains("microsoft") || dbProductName.contains("sql server")) {
+                return "[" + tableName + "]";
+            }
+
+            String quoteString = metaData.getIdentifierQuoteString();
             if (quoteString == null || quoteString.trim().isEmpty()) {
                 quoteString = "\"";
             }
 
-            // Return uppercase table name for Oracle if no spaces exist (Oracle standard)
-            String dbProductName = metaData.getDatabaseProductName().toLowerCase();
             if (dbProductName.contains("oracle") && !tableName.contains(" ")) {
                 return tableName.toUpperCase();
             }
