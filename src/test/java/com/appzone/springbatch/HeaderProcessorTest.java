@@ -1,78 +1,97 @@
 package com.appzone.springbatch;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-
+import com.appzone.springbatch.DTO.CsvHeaderMetadata;
 import com.appzone.springbatch.processors.HeaderProcessor;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.ai.chat.client.ChatClient;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HeaderProcessorTest {
 
-    // Assuming processHeaders is package-private for testing
-	
+    @Mock
+    private ChatClient chatClient;
+
+    @InjectMocks
     private HeaderProcessor processor;
 
-    
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() {
-        // Instantiate directly without needing Spring IoC Container
-        processor = new HeaderProcessor();
+        MockitoAnnotations.openMocks(this);
     }
-    
+
+    private String createTestCsv(String filename, String... headers) throws IOException {
+        Path csvPath = tempDir.resolve(filename);
+        String headerLine = String.join(",", headers);
+        Files.writeString(csvPath, headerLine + "\nval1,val2,val3");
+        return csvPath.toAbsolutePath().toString();
+    }
+
     @Test
     @DisplayName("Should handle standard valid headers")
-    void testStandardHeaders() {
-        String[] input = {"First Name", "Last Name", "Email Address"};
-        
-        List<String> result = processor.processHeaders(input);
+    void testStandardHeaders() throws Exception {
+        String csvPath = createTestCsv("standard.csv", "First Name", "Last Name", "Email Address");
+
+        CsvHeaderMetadata metadata = processor.extractMetadata(csvPath);
+        List<String> result = metadata.getSanitizedHeaders();
 
         assertThat(result).containsExactly("first_name", "last_name", "email_address");
     }
 
     @Test
     @DisplayName("Should clean special characters, whitespace, and leading/trailing underscores")
-    void testSpecialCharactersAndWhitespace() {
-        String[] input = {"  User ID!! ", "### @$%!", "does_this__person____recieved_pension"};
+    void testSpecialCharactersAndWhitespace() throws Exception {
+        String csvPath = createTestCsv("special.csv", "  User ID!! ", "### @$%!", "does_this__person____recieved_pension");
 
-        List<String> result = processor.processHeaders(input);
+        CsvHeaderMetadata metadata = processor.extractMetadata(csvPath);
+        List<String> result = metadata.getSanitizedHeaders();
 
         assertThat(result).containsExactly("user_id", "unnamed_column", "does_this_person_recieved_pension");
     }
 
     @Test
     @DisplayName("Should rename duplicate headers with sequence suffixes")
-    void testDuplicateHeaders() {
-        String[] input = {"Age", "Age", "Age"};
+    void testDuplicateHeaders() throws Exception {
+        String csvPath = createTestCsv("duplicates.csv", "Age", "Age", "Age");
 
-        List<String> result = processor.processHeaders(input);
+        CsvHeaderMetadata metadata = processor.extractMetadata(csvPath);
+        List<String> result = metadata.getSanitizedHeaders();
 
-        // First occurrence gets base name, subsequent get _1, _2
         assertThat(result).containsExactly("age", "age_1", "age_2");
     }
 
     @Test
     @DisplayName("Should handle empty and whitespace-only input strings")
-    void testEmptyAndBlankHeaders() {
-        String[] input = {"", "   ", "!!!"};
+    void testEmptyAndBlankHeaders() throws Exception {
+        String csvPath = createTestCsv("empty_headers.csv", "", "   ", "!!!");
 
-        List<String> result = processor.processHeaders(input);
+        CsvHeaderMetadata metadata = processor.extractMetadata(csvPath);
+        List<String> result = metadata.getSanitizedHeaders();
 
-        // All clean up to empty, so they fall back to unnamed_column and handle deduplication
         assertThat(result).containsExactly("unnamed_column", "unnamed_column_1", "unnamed_column_2");
     }
 
     @Test
     @DisplayName("Should handle mixed case, duplicates, and special characters simultaneously")
-    void testComplexMixedInput() {
-        String[] input = {"Name", "NAME", "  name  ", "Phone #", "Phone #"};
+    void testComplexMixedInput() throws Exception {
+        String csvPath = createTestCsv("complex.csv", "Name", "NAME", "  name  ", "Phone #", "Phone #");
 
-        List<String> result = processor.processHeaders(input);
+        CsvHeaderMetadata metadata = processor.extractMetadata(csvPath);
+        List<String> result = metadata.getSanitizedHeaders();
 
         assertThat(result).containsExactly("name", "name_1", "name_2", "phone", "phone_1");
     }
