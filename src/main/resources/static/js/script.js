@@ -1,4 +1,10 @@
-// Initialize Tooltips
+// Helper function to strip double quotes and replace backslashes with forward slashes
+function formatPath(inputPath) {
+    if (!inputPath) return '';
+    return inputPath.replace(/"/g, '').replace(/\\/g, '/');
+}
+
+// Initialize Tooltips, Heartbeat Ping, and File Path Listener
 document.addEventListener('DOMContentLoaded', function () {
     // 1. Initialize Bootstrap Tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -7,13 +13,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // 2. Start Heartbeat Ping to keep Spring Boot alive
-    // Immediately send the first ping so the backend knows the tab opened
     fetch('/api/ping', { method: 'POST' }).catch(() => {});
-
-    // Send ping every 3 seconds
     setInterval(() => {
         fetch('/api/ping', { method: 'POST' }).catch(() => {});
     }, 3000);
+
+    // 3. Auto-format path whenever user types or pastes into #filePath
+    const filePathInput = document.getElementById('filePath');
+    if (filePathInput) {
+        filePathInput.addEventListener('input', function () {
+            this.value = formatPath(this.value);
+        });
+    }
 });
 
 // Driver Presets Map
@@ -89,103 +100,101 @@ function setProgressBar(percent) {
 }
 
 async function testDatabaseConnection() {
-	const url = document.getElementById("jdbcUrl").value.trim();
-	    const username = document.getElementById("dbUsername").value.trim();
-	    const password = document.getElementById("dbPassword").value;
+    const url = document.getElementById("jdbcUrl").value.trim();
+    const username = document.getElementById("dbUsername").value.trim();
+    const password = document.getElementById("dbPassword").value;
 
-	    const button = document.getElementById("testConnBtn");
-	    const spinner = document.getElementById("testBtnSpinner");
-	    const icon = document.getElementById("testBtnIcon");
+    const button = document.getElementById("testConnBtn");
+    const spinner = document.getElementById("testBtnSpinner");
+    const icon = document.getElementById("testBtnIcon");
 
-	    // Basic frontend validation
-	    if (!url) {
-	        logConsole('ERROR', 'Database URL is required.');
-	        return;
-	    }
+    // Basic frontend validation
+    if (!url) {
+        logConsole('ERROR', 'Database URL is required.');
+        return;
+    }
 
-	    if (!username) {
-	        logConsole('ERROR', 'Database username is required.');
-	        return;
-	    }
+    if (!username) {
+        logConsole('ERROR', 'Database username is required.');
+        return;
+    }
 
-	    if (!password) {
-	        logConsole('ERROR', 'Database password is required.');
-	        return;
-	    }
+    if (!password) {
+        logConsole('ERROR', 'Database password is required.');
+        return;
+    }
 
-	    // Disable button while testing
-	    button.disabled = true;
-	    spinner.classList.remove('d-none');
-	    icon.classList.add('d-none');
+    // Disable button while testing
+    button.disabled = true;
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
 
-	    logConsole('INFO', 'Testing database connection...');
-	    logConsole('INFO', `Database URL: ${url}`);
-	    logConsole('INFO', `Username: ${username}`);
-	    logConsole('INFO', 'Password: ***');
+    logConsole('INFO', 'Testing database connection...');
+    logConsole('INFO', `Database URL: ${url}`);
+    logConsole('INFO', `Username: ${username}`);
+    logConsole('INFO', 'Password: ***');
 
-	    try {
+    try {
+        const response = await fetch(
+            "/api/database/test-connection",
+            {
+                method: "POST",
 
-	        const response = await fetch(
-	            "/api/database/test-connection",
-	            {
-	                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
 
-	                headers: {
-	                    "Content-Type": "application/json"
-	                },
+                body: JSON.stringify({
+                    url: url,
+                    username: username,
+                    password: password
+                })
+            }
+        );
 
-	                body: JSON.stringify({
-	                    url: url,
-	                    username: username,
-	                    password: password
-	                })
-	            }
-	        );
+        const message = await response.text();
 
-	        const message = await response.text();
+        if (response.ok) {
+            logConsole(
+                'SUCCESS',
+                '✓ ' + message
+            );
+        } else {
+            logConsole(
+                'ERROR',
+                '✗ ' + message
+            );
+        }
 
-	        if (response.ok) {
+    } catch (error) {
+        console.error("Connection test error:", error);
 
-	            logConsole(
-	                'SUCCESS',
-	                '✓ ' + message
-	            );
+        logConsole(
+            'ERROR',
+            '✗ Unable to contact backend server.'
+        );
 
-	        } else {
-
-	            logConsole(
-	                'ERROR',
-	                '✗ ' + message
-	            );
-	        }
-
-	    } catch (error) {
-
-	        console.error("Connection test error:", error);
-
-	        logConsole(
-	            'ERROR',
-	            '✗ Unable to contact backend server.'
-	        );
-
-	    } finally {
-
-	        // Enable button again
-	        button.disabled = false;
-	        spinner.classList.add('d-none');
-	        icon.classList.remove('d-none');
-	    }
+    } finally {
+        // Enable button again
+        button.disabled = false;
+        spinner.classList.add('d-none');
+        icon.classList.remove('d-none');
+    }
 }
 
 async function handleFormSubmit(e) {
     e.preventDefault();
+
+    // Clean up the path before constructing the payload
+    const rawPath = document.getElementById('filePath').value;
+    const cleanPath = formatPath(rawPath);
 
     const payload = {
         driverClassName: document.getElementById('driverClassName').value,
         dbUrl: document.getElementById('jdbcUrl').value,
         username: document.getElementById('dbUsername').value,
         password: document.getElementById('dbPassword').value,
-        csvFilePath: document.getElementById('filePath').value,
+        csvFilePath: cleanPath,
         tableName: document.getElementById('tableName').value
     };
 
