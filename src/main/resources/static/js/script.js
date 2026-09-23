@@ -1,9 +1,19 @@
 // Initialize Tooltips
 document.addEventListener('DOMContentLoaded', function () {
+    // 1. Initialize Bootstrap Tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    // 2. Start Heartbeat Ping to keep Spring Boot alive
+    // Immediately send the first ping so the backend knows the tab opened
+    fetch('/api/ping', { method: 'POST' }).catch(() => {});
+
+    // Send ping every 3 seconds
+    setInterval(() => {
+        fetch('/api/ping', { method: 'POST' }).catch(() => {});
+    }, 3000);
 });
 
 // Driver Presets Map
