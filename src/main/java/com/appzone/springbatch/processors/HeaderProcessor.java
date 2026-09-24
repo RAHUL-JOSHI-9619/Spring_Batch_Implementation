@@ -69,7 +69,7 @@ public class HeaderProcessor {
             } else {
                 columnCounts.put(clean, 0);
             }
-            	if (clean.length() > 64) {
+            	if (clean.length() > 25) {
 				clean = shortenWithAI(clean);
 				}
             cleanHeaders.add(clean);
@@ -150,7 +150,7 @@ public class HeaderProcessor {
 
     private String shortenWithAI(String longColumnName) {
         try {
-            String prompt = "Shorten the following database column name to under 50 characters while preserving its meaning. " +
+            String prompt = "Shorten the following database column name to under 25 characters while preserving its meaning. " +
                             "Use lower_snake_case with only alphanumeric characters and underscores. " +
                             "Return ONLY the shortened string with no explanations or punctuation.\n" +
                             "Column name: " + longColumnName;
@@ -168,14 +168,14 @@ public class HeaderProcessor {
                                           .replaceAll("^_+|_+$", "");
                 
                 // Hard fallback safeguard just in case AI returns > 64 chars
-                return shortened.length() > 64 ? shortened.substring(0, 64) : shortened;
+                return shortened.length() > 25 ? shortened.substring(0, 25) : shortened;
             }
         } catch (Exception e) {
             // Fallback gracefully to basic substring if AI service call fails/times out
             System.err.println("AI call failed for column shortening, using substring fallback: " + e.getMessage());
         }
 
-        return longColumnName.substring(0, 64);
+        return longColumnName.substring(0, 25);
     }
     
     
