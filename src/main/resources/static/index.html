@@ -63,6 +63,7 @@
                                 <option value="mysql">MySQL Database</option>
                                 <option value="postgresql">PostgreSQL Database</option>
                                 <option value="oracle">Oracle Database</option>
+                                <option value="sqlserver">SQL Server Database</option>
                                 <option value="h2">H2 Embedded Database</option>
                             </select>
                         </div>
@@ -187,6 +188,35 @@
                             <span class="console-info">Dashboard initialized. Awaiting configuration input...</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Already Exists - Confirmation Modal -->
+    <div class="modal fade" id="tableExistsModal" tabindex="-1" aria-labelledby="tableExistsModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="tableExistsModalLabel">
+                        <i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>Table Already Exists
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        There is already a table named
+                        <strong id="existingTableNameLabel"></strong>
+                        in your database. Do you want to <strong>replace</strong> it?
+                        All existing data in this table will be permanently deleted.
+                    </p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" id="renameTableBtn">
+                        <i class="fa-solid fa-pen me-1"></i> No, let me rename it
+                    </button>
+                    <button type="button" class="btn btn-gradient" id="replaceTableBtn">
+                        <i class="fa-solid fa-rotate me-1"></i> Yes, replace it
+                    </button>
                 </div>
             </div>
         </div>

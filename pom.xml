@@ -109,7 +109,10 @@
 </dependency>
 		
 		<!-- Source: https://mvnrepository.com/artifact/org.apache.commons/commons-csv -->
-
+<dependency>
+    <groupId>com.zaxxer</groupId>
+    <artifactId>HikariCP</artifactId>
+</dependency>
 		
 	</dependencies>
 	<dependencyManagement>

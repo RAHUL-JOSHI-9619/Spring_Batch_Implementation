@@ -25,7 +25,61 @@ document.addEventListener('DOMContentLoaded', function () {
             this.value = formatPath(this.value);
         });
     }
+
+    // 4. Wire up the "table already exists" confirmation modal buttons.
+    //    This never touches the backend drop/create logic - it only decides
+    //    whether handleFormSubmit is allowed to continue.
+    const replaceBtn = document.getElementById('replaceTableBtn');
+    const renameBtn = document.getElementById('renameTableBtn');
+
+    if (replaceBtn) {
+        replaceBtn.addEventListener('click', function () {
+            hideTableExistsModal();
+            if (pendingBatchPayload) {
+                logConsole('WARN', `Replacing existing table '${pendingBatchPayload.tableName}'. Existing data in it will be lost.`);
+                submitBatchPayload(pendingBatchPayload);
+            }
+        });
+    }
+
+    if (renameBtn) {
+        renameBtn.addEventListener('click', function () {
+            hideTableExistsModal();
+            const tableNameInput = document.getElementById('tableName');
+            tableNameInput.value = '';
+            tableNameInput.focus();
+            logConsole('INFO', 'Enter a different table name and submit again.');
+            resetSubmitButtonState();
+            setProgressBar(0);
+            pendingBatchPayload = null;
+        });
+    }
 });
+
+// Holds the batch payload while we're waiting on the user's Yes/No answer
+// in the "table already exists" modal.
+let pendingBatchPayload = null;
+
+function showTableExistsModal(tableName) {
+    document.getElementById('existingTableNameLabel').textContent = tableName;
+    const modalEl = document.getElementById('tableExistsModal');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+function hideTableExistsModal() {
+    const modalEl = document.getElementById('tableExistsModal');
+    const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    instance.hide();
+}
+
+function resetSubmitButtonState() {
+    const btn = document.getElementById('startBatchBtn');
+    const spinner = document.getElementById('startBtnSpinner');
+    const icon = document.getElementById('startBtnIcon');
+    btn.disabled = false;
+    spinner.classList.add('d-none');
+    icon.classList.remove('d-none');
+}
 
 // Driver Presets Map
 const presets = {
@@ -40,6 +94,12 @@ const presets = {
     oracle: {
         driver: 'oracle.jdbc.OracleDriver',
         url: 'jdbc:oracle:thin:@localhost:1521:xe'
+    },
+    sqlserver: {
+        driver: 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
+        // useBulkCopyForBatchInsert=true speeds up executeBatch() a lot for SQL Server -
+        // it makes the driver use SQLServerBulkCopy instead of one RPC round trip per batch.
+        url: 'jdbc:sqlserver://localhost:1433;databaseName=batch_db;encrypt=true;trustServerCertificate=true;useBulkCopyForBatchInsert=true'
     },
     h2: {
         driver: 'org.h2.Driver',
@@ -205,6 +265,55 @@ async function handleFormSubmit(e) {
     btn.disabled = true;
     spinner.classList.remove('d-none');
     icon.classList.add('d-none');
+    setProgressBar(10);
+
+    logConsole('INFO', `Checking whether table '${payload.tableName}' already exists...`);
+
+    try {
+        const checkResponse = await fetch('/api/database/check-table', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: payload.dbUrl,
+                username: payload.username,
+                password: payload.password,
+                tableName: payload.tableName
+            })
+        });
+
+        if (checkResponse.ok) {
+            const checkResult = await checkResponse.json();
+
+            if (checkResult.exists) {
+                // Pause here. The modal's Yes/No buttons call submitBatchPayload(),
+                // or clear the field so the user can rename the table.
+                logConsole('WARN', `A table named '${payload.tableName}' already exists.`);
+                pendingBatchPayload = payload;
+                showTableExistsModal(payload.tableName);
+                return;
+            }
+
+            logConsole('INFO', `No existing table named '${payload.tableName}'. Proceeding.`);
+        } else {
+            // Could not verify (e.g. bad credentials) - let run-import surface the real error
+            // rather than silently blocking the user here.
+            logConsole('WARN', 'Could not verify whether the table already exists. Proceeding anyway.');
+        }
+    } catch (err) {
+        logConsole('WARN', 'Could not reach the table-check endpoint. Proceeding anyway.');
+    }
+
+    await submitBatchPayload(payload);
+}
+
+async function submitBatchPayload(payload) {
+    const btn = document.getElementById('startBatchBtn');
+    const spinner = document.getElementById('startBtnSpinner');
+    const icon = document.getElementById('startBtnIcon');
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
     setProgressBar(25);
 
     logConsole('INFO', 'Submitting Spring Batch payload to backend...');
@@ -236,8 +345,7 @@ async function handleFormSubmit(e) {
         logConsole('WARN', `Endpoint '/api/batch/run-import' un-reachable directly. Payload formatted properly for integration.`);
         logConsole('SUCCESS', 'Simulated batch job submission completed successfully!');
     } finally {
-        btn.disabled = false;
-        spinner.classList.add('d-none');
-        icon.classList.remove('d-none');
+        pendingBatchPayload = null;
+        resetSubmitButtonState();
     }
 }
