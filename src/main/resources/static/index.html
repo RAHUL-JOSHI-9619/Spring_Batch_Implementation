@@ -27,6 +27,12 @@
         </div>
     </nav>
 
+    <!-- Floating button to reopen the AI setup guide at any time -->
+    <button type="button" class="ai-guide-fab" data-bs-toggle="modal" data-bs-target="#aiGuideModal">
+        <span class="fab-icon-badge"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <span class="fab-label">AI Setup Guide</span>
+    </button>
+
     <div class="container my-4">
         <div class="gradient-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
@@ -217,6 +223,134 @@
                     <button type="button" class="btn btn-gradient" id="replaceTableBtn">
                         <i class="fa-solid fa-rotate me-1"></i> Yes, replace it
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Column-Shortening Setup Guide Modal -->
+    <div class="modal fade ai-guide-modal" id="aiGuideModal" tabindex="-1" aria-labelledby="aiGuideModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-1" id="aiGuideModalLabel">
+                            <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Get Meaningful Column Names
+                        </h5>
+                        <p class="mb-0 small opacity-80">How long column names get shortened, and why AI makes the result better</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="guide-ai-recommend-banner">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <div>
+                            <strong>AI shortening is recommended.</strong>
+                            <div class="small text-muted mt-1">
+                                A CSV column can only be so many characters long in a database. Without AI, long names
+                                get shortened using mechanical rules that lose meaning. With a free Gemini API key
+                                connected, the app understands what a column actually means and shortens it while
+                                keeping it readable.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 1: Why AI -->
+                    <div class="guide-section">
+                        <div class="guide-section-title">
+                            <span class="guide-num">1</span> Why AI is recommended
+                        </div>
+                        <ul class="guide-step-list">
+                            <li><span class="guide-dot"></span> AI reads the column name the way a person would and keeps the words that actually carry meaning.</li>
+                            <li><span class="guide-dot"></span> Without it, names are shortened mechanically — still safe and unique, but harder to recognize later.</li>
+                            <li><span class="guide-dot"></span> Google AI Studio's Gemini API has a free tier, so this costs nothing to set up.</li>
+                            <li><span class="guide-dot"></span> If no key is set, the app still works — it just skips straight to the mechanical steps below.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Section 2: Get a free Gemini API key -->
+                    <div class="guide-section">
+                        <div class="guide-section-title">
+                            <span class="guide-num">2</span> Create a free Gemini API key
+                        </div>
+                        <ul class="guide-step-list">
+                            <li><span class="guide-dot"></span> Go to Google AI Studio and sign in with any Google account.</li>
+                            <li><span class="guide-dot"></span> Click <strong>"Create API key"</strong>, then choose or create a Google Cloud project when prompted.</li>
+                            <li><span class="guide-dot"></span> Copy the key that's generated — it's a long string starting with <code>AIza...</code>.</li>
+                        </ul>
+                        <a class="guide-link-btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Google AI Studio
+                        </a>
+                    </div>
+
+                    <!-- Section 3: Set as environment variable -->
+                    <div class="guide-section">
+                        <div class="guide-section-title">
+                            <span class="guide-num">3</span> Store the key as a system environment variable
+                        </div>
+                        <ul class="guide-step-list">
+                            <li><span class="guide-dot"></span> The app reads the key from a variable named <code>GEMINI_API_KEY</code> — it is never typed into this page.</li>
+                            <li><span class="guide-dot"></span> <strong>Windows (Command Prompt, run once):</strong>
+                                <span class="guide-code">setx GEMINI_API_KEY "your-key-here"</span>
+                                Close and reopen any terminal / IDE afterwards so it picks up the change.
+                            </li>
+                            <li><span class="guide-dot"></span> <strong>macOS / Linux (add to your shell profile, e.g. <code>~/.bashrc</code> or <code>~/.zshrc</code>):</strong>
+                                <span class="guide-code">export GEMINI_API_KEY="your-key-here"</span>
+                                Then restart the terminal or run <code>source ~/.bashrc</code>.
+                            </li>
+                            <li><span class="guide-dot"></span> Restart this application after setting the variable — it's only read once, at startup.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Section 4: Example -->
+                    <div class="guide-section">
+                        <div class="guide-section-title">
+                            <span class="guide-num">4</span> Example: one long column name, two paths
+                        </div>
+                        <p class="small text-muted mb-2">Original column name (146 characters):</p>
+                        <div class="guide-example-name mb-3">
+                            the_total_number_of_monthly_active_premium_customer_accounts_created_during_the_previous_fiscal_reporting_period_across_all_regional_business_units_and_departments
+                        </div>
+
+                        <p class="small fw-semibold mb-1" style="color:#15803d;">
+                            <i class="fa-solid fa-sparkles me-1"></i> With AI (understands the meaning)
+                        </p>
+                        <div class="guide-pipeline mb-3">
+                            <div class="guide-pipeline-step">
+                                <span class="pipeline-tag pipeline-tag-ai">AI (Gemini)</span>
+                                <div class="pipeline-result">mthly_actv_prem_cust_accts_prev_fy_rpt_period</div>
+                            </div>
+                        </div>
+
+                        <p class="small fw-semibold mb-1" style="color:#334155;">
+                            <i class="fa-solid fa-gears me-1"></i> Without AI (mechanical stages, in order)
+                        </p>
+                        <div class="guide-pipeline">
+                            <div class="guide-pipeline-step">
+                                <span class="pipeline-tag pipeline-tag-nlp">1. NLP</span>
+                                <div class="pipeline-result">tot_num_cust_acct</div>
+                                <div class="small text-muted mt-1">Keeps only meaningful words (nouns), drops filler words, then abbreviates known business terms.</div>
+                            </div>
+                            <div class="guide-pipeline-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                            <div class="guide-pipeline-step">
+                                <span class="pipeline-tag pipeline-tag-vowel">2. Vowel Removal</span>
+                                <div class="pipeline-result">tt_nm_cstmr_acct</div>
+                                <div class="small text-muted mt-1">Only used if step 1 is still too long. Strips inner vowels, keeps the first letter of each word.</div>
+                            </div>
+                            <div class="guide-pipeline-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                            <div class="guide-pipeline-step">
+                                <span class="pipeline-tag pipeline-tag-hash">3. Hash Fallback</span>
+                                <div class="pipeline-result">tt_nm_cstmr_a91f</div>
+                                <div class="small text-muted mt-1">Last resort, only if still too long or not unique. Trims the name and adds a short unique code.</div>
+                            </div>
+                        </div>
+                        <p class="small text-muted mt-2 mb-0">
+                            Every column gets a name — with AI enabled, most real column names are handled at the first,
+                            most readable stage. A full mapping of original → final names is always saved for you to review.
+                        </p>
+                    </div>
+
                 </div>
             </div>
         </div>

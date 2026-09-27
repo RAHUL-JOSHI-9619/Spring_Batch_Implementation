@@ -12,6 +12,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
+    // 1b. Show the AI setup guide automatically on every page load. The floating
+    //     "AI Setup Guide" button (top-right, wired via data-bs-toggle in the HTML)
+    //     lets the user reopen it any time, including right after closing it by mistake.
+    const aiGuideModalEl = document.getElementById('aiGuideModal');
+    if (aiGuideModalEl) {
+        const aiGuideModal = bootstrap.Modal.getOrCreateInstance(aiGuideModalEl);
+        aiGuideModal.show();
+    }
+
     // 2. Start Heartbeat Ping to keep Spring Boot alive
     fetch('/api/ping', { method: 'POST' }).catch(() => {});
     setInterval(() => {

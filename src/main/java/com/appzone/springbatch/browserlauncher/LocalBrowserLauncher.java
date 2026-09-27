@@ -1,10 +1,5 @@
 package com.appzone.springbatch.browserlauncher;
 
-
-
-
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -17,12 +12,20 @@ import java.net.URISyntaxException;
 @Component
 public class LocalBrowserLauncher {
 
-    @Value("${server.port:8080}")
-    private String port;
+    private final ServerPortHolder serverPortHolder;
+
+    public LocalBrowserLauncher(ServerPortHolder serverPortHolder) {
+        this.serverPortHolder = serverPortHolder;
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void openBrowserOnStartup() {
         System.setProperty("java.awt.headless", "false");
+
+        // Use the port the server actually bound to, not the configured
+        // server.port value - those differ whenever the preferred port was
+        // busy and PortAvailabilityCustomizer fell back to a free one.
+        int port = serverPortHolder.getPort();
         String url = "http://localhost:" + port;
 
         // Preferred cross-platform method using Desktop API
