@@ -113,6 +113,20 @@
     <groupId>com.zaxxer</groupId>
     <artifactId>HikariCP</artifactId>
 </dependency>
+
+<!-- OpenNLP: tokenizer, POS tagger, lemmatizer -->
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>2.3.3</version>
+        </dependency>
+        
+        
+     
+
+
+
+
 		
 	</dependencies>
 	<dependencyManagement>
